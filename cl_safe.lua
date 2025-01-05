@@ -10,28 +10,20 @@ local CurrentLockNum = 1
 local ReqDialRotationDirection = InitDialRotationDirection
 local SafeDialRotation = 3.6 * math.random(0, 100)
 
+local SoundsetRef = "Mud5_Sounds"
+local SoundsetName = "Small_Safe_Unlock"
+local SounsetLoaded = false
 
-CurrentDialRotationDirection = InitDialRotationDirection
-LastDialRotationDirection = InitDialRotationDirection
+local CurrentDialRotationDirection = InitDialRotationDirection
+local LastDialRotationDirection = InitDialRotationDirection
 
-TimeLimit = 0 
+local TimeLimit = 0 
 
-local function sescal(dict, ses)
-    local soundset_ref = dict or "Mud5_Sounds"
-    local soundset_name = ses or  "Small_Safe_Unlock"
-    local counter_i = 1
+local function PlayGameSound(audioName)
+	if not SounsetLoaded then return end
 
-    while soundset_ref~=0 and not Citizen.InvokeNative(0xD9130842D7226045, soundset_ref, 0) and counter_i <= 300  do
-        counter_i = counter_i + 1
-        Citizen.Wait(0)
-    end
-
-    if soundset_ref == 0 or Citizen.InvokeNative(0xD9130842D7226045, soundset_ref, 0) then
-        local ped = PlayerPedId()
-        local ped_coords = GetEntityCoords(ped)
-        local x,y,z =  table.unpack(ped_coords + GetEntityForwardVector(ped)*2.0)
-        Citizen.InvokeNative(0xCCE219C922737BFA,soundset_name, x, y, z, soundset_ref, true, 0, true, 0)
-    end
+	audioName = audioName or SoundsetName
+	Citizen.InvokeNative(0x6FB1DA3CA9DA7D90, audioName, PlayerPedId(), SoundsetRef, true, 0, 0)
 end
 
 local function RelockSafe()
@@ -100,7 +92,7 @@ end
 
 local function EndMiniGame(safeUnlocked)
 	if safeUnlocked then
-		sescal("Mud5_Sounds","Small_Safe_Unlock")
+		PlayGameSound("Small_Safe_Unlock")
 	end
 
 	IsMinigame = false
@@ -133,9 +125,9 @@ local function ReleaseCurrentPin()
 	end
 
 	if SafeLockStatus[CurrentLockNum] then
-		sescal("Mud5_Sounds", "Small_Safe_Tumbler")
+		PlayGameSound("Small_Safe_Tumbler")
 	else
-		sescal("Mud5_Sounds", "Small_Safe_Tumbler_Final")
+		PlayGameSound("Small_Safe_Tumbler_Final")
 	end
 end
 
@@ -159,7 +151,7 @@ local function RotateSafeDial(rotationDirection)
 			SafeDialRotation = SafeDialRotation + 360
 		end
 
-		sescal("Mud5_Sounds", "Dial_Turn_Single")
+		PlayGameSound("Dial_Turn_Single")
 
 	end
 
@@ -232,7 +224,7 @@ local function RunMiniGame()
 			if correctMovement then
 				local pinUnlocked = SafeLockStatus[CurrentLockNum] and currentDialNumber == SafeCombination[CurrentLockNum]
 				if pinUnlocked and not OnSpot then
-					sescal("Mud5_Sounds","Small_Safe_Tumbler")
+					PlayGameSound("Small_Safe_Tumbler")
 					OnSpot = true
 				end
 			end
@@ -246,8 +238,19 @@ local function createSafe(combination, milliseconds)
 	local game = promise.new()
 
 	IsMinigame = not IsMinigame
+
 	RequestStreamedTextureDict("qadr_safe_cracking",false)
 	RequestStreamedTextureDict("ui_startup_textures",false)
+
+	local timeout = GetGameTimer() + 5000
+
+    while not Citizen.InvokeNative(0xD9130842D7226045, SoundsetRef, false) and timeout < GetGameTimer() do
+        Wait(0)
+    end
+
+	if Citizen.InvokeNative(0xD9130842D7226045, SoundsetRef, false) then
+		SounsetLoaded = true
+	end
 
 	if IsMinigame then
 		InitializeSafe(combination, milliseconds)
@@ -274,8 +277,14 @@ local function createSafe(combination, milliseconds)
 		end)
 		
 	end
+	
+	game = Citizen.Await(game)
 
-	return Citizen.Await(game)
+	if SounsetLoaded then
+		Citizen.InvokeNative(0x531A78D6BF27014B, SoundsetRef)
+	end
+
+	return game
 end
 
 RegisterCommand("createSafe",function()
