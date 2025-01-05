@@ -15,7 +15,9 @@ It will be generated based on how many random numbers are provided to the **crea
 
 Also, you shall only provide numbers **between 0 and 99**, otherwise it will be impossible to **finish the minigame properly!**
 `````lua
-local res = exports["qadr-safe"]:createSafe({math.random(0,99)})
+--- @param combination table
+--- @param milliseconds number | nil
+local res = exports["qadr-safe"]:createSafe({math.random(0,99)}, 60000)
 `````
 *The final result is returned as soon as the minigame is finished*
 
